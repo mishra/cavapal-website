@@ -102,10 +102,15 @@
             border-radius: 50%;
             position: fixed;
             z-index: 20;
-            pointer-events: none;
+            cursor: pointer;
             border: none;
             outline: none;
-            transition: transform 0.1s ease-out;
+            transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            transform: translate(-50%, -50%);
+        }
+        
+        .booped {
+            transform: translate(-50%, -50%) scale(2) !important;
         }
         
         .second-dog-container {
@@ -211,6 +216,7 @@
             const mainContainer = document.querySelector('.dog-image-container');
             const secondDogContainer = document.querySelector('.second-dog-container');
             const dogsContainer = document.querySelector('.dogs-container');
+            let isBooped = false;
             
             // Get center point of the main dog image
             const getMainImageCenter = () => {
@@ -239,6 +245,56 @@
             // Recalculate center on window resize
             window.addEventListener('resize', updateCenter);
             
+            // Boop function
+            function boop() {
+                if (!isBooped) {
+                    isBooped = true;
+                    followerImage.classList.add('booped');
+                    
+                    setTimeout(() => {
+                        followerImage.classList.remove('booped');
+                        isBooped = false;
+                    }, 600);
+                }
+            }
+            
+            // Add click event to entire document to catch clicks on the orbiting image
+            document.addEventListener('click', function(e) {
+                // Calculate distance from click to follower image center
+                const followerRect = followerImage.getBoundingClientRect();
+                const followerCenterX = followerRect.left + followerRect.width / 2;
+                const followerCenterY = followerRect.top + followerRect.height / 2;
+                
+                const dx = e.clientX - followerCenterX;
+                const dy = e.clientY - followerCenterY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // If click is within the image radius, trigger boop
+                if (distance < followerRect.width / 2) {
+                    boop();
+                }
+            });
+            
+            // For mobile devices
+            document.addEventListener('touchstart', function(e) {
+                const touch = e.touches[0];
+                
+                // Calculate distance from touch to follower image center
+                const followerRect = followerImage.getBoundingClientRect();
+                const followerCenterX = followerRect.left + followerRect.width / 2;
+                const followerCenterY = followerRect.top + followerRect.height / 2;
+                
+                const dx = touch.clientX - followerCenterX;
+                const dy = touch.clientY - followerCenterY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // If touch is within the image radius, trigger boop
+                if (distance < followerRect.width / 2) {
+                    e.preventDefault(); // Prevent default touch behavior
+                    boop();
+                }
+            }, { passive: false });
+            
             // Animation loop for follower image
             function animate() {
                 // Update the center position on every frame to ensure it follows the main image
@@ -248,10 +304,9 @@
                 const x = centerX + Math.cos(angle) * radius;
                 const y = centerY + Math.sin(angle) * radius;
                 
-                // Apply position to follower image with correct centering
+                // Apply position to follower image
                 followerImage.style.left = `${x}px`;
                 followerImage.style.top = `${y}px`;
-                followerImage.style.transform = 'translate(-50%, -50%)';
                 
                 // Adjust z-index based on position (higher when above the main image)
                 if (y < centerY) {
