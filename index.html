@@ -212,11 +212,18 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const mainImage = document.querySelector('.dog-image');
-            const followerImage = document.querySelector('.follower-image');
+            const initialFollowerImage = document.querySelector('.follower-image');
             const mainContainer = document.querySelector('.dog-image-container');
             const secondDogContainer = document.querySelector('.second-dog-container');
             const dogsContainer = document.querySelector('.dogs-container');
-            let isBooped = false;
+            const contentContainer = document.querySelector('.content-container');
+            
+            // Remove the initial follower image as we'll create it programmatically
+            initialFollowerImage.remove();
+            
+            // Keep track of all floating followers
+            const followers = [];
+            let followerCounter = 0;
             
             // Get center point of the main dog image
             const getMainImageCenter = () => {
@@ -227,96 +234,156 @@
                 };
             };
             
-            let angle = 0;
-            const radius = 150; // Fixed radius for the orbit
-            let centerX = 0;
-            let centerY = 0;
+            // Create a new follower
+            function createFollower(x, y) {
+                const follower = document.createElement('img');
+                follower.classList.add('follower-image');
+                follower.src = "/api/placeholder/80/80"; // Replace with your actual small dog image
+                follower.alt = "Small dog photo";
+                follower.dataset.id = followerCounter++;
+                follower.style.left = `${x}px`;
+                follower.style.top = `${y}px`;
+                
+                // Set random movement parameters
+                const randomData = {
+                    speedX: (Math.random() - 0.5) * 2, // Random between -1 and 1
+                    speedY: (Math.random() - 0.5) * 2,
+                    booped: false,
+                    wobbleOffset: Math.random() * Math.PI * 2, // Random phase offset
+                    wobbleSpeed: 0.02 + Math.random() * 0.03  // Random wobble speed
+                };
+                
+                followers.push({
+                    element: follower,
+                    ...randomData
+                });
+                
+                document.body.appendChild(follower);
+                return follower;
+            }
             
-            // Update center coordinates
-            const updateCenter = () => {
-                const center = getMainImageCenter();
-                centerX = center.x;
-                centerY = center.y;
-            };
-            
-            // Initial center calculation
-            updateCenter();
-            
-            // Recalculate center on window resize
-            window.addEventListener('resize', updateCenter);
+            // Create initial follower near the main dog image
+            const center = getMainImageCenter();
+            createFollower(center.x, center.y - 150);
             
             // Boop function
-            function boop() {
-                if (!isBooped) {
-                    isBooped = true;
-                    followerImage.classList.add('booped');
+            function boop(follower) {
+                const followerData = followers.find(f => f.element.dataset.id === follower.dataset.id);
+                
+                if (followerData && !followerData.booped) {
+                    followerData.booped = true;
+                    follower.classList.add('booped');
                     
+                    // Create a new follower
+                    const rect = follower.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    
+                    // Add slight offset to prevent stacking
+                    const newX = centerX + (Math.random() * 40 - 20);
+                    const newY = centerY + (Math.random() * 40 - 20);
+                    
+                    // Create the new follower after a slight delay
                     setTimeout(() => {
-                        followerImage.classList.remove('booped');
-                        isBooped = false;
+                        createFollower(newX, newY);
+                    }, 300);
+                    
+                    // Remove the booped class after animation
+                    setTimeout(() => {
+                        follower.classList.remove('booped');
+                        followerData.booped = false;
                     }, 600);
                 }
             }
             
-            // Add click event to entire document to catch clicks on the orbiting image
+            // Handle clicks for booping
             document.addEventListener('click', function(e) {
-                // Calculate distance from click to follower image center
-                const followerRect = followerImage.getBoundingClientRect();
-                const followerCenterX = followerRect.left + followerRect.width / 2;
-                const followerCenterY = followerRect.top + followerRect.height / 2;
-                
-                const dx = e.clientX - followerCenterX;
-                const dy = e.clientY - followerCenterY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                // If click is within the image radius, trigger boop
-                if (distance < followerRect.width / 2) {
-                    boop();
-                }
+                followers.forEach(followerData => {
+                    const follower = followerData.element;
+                    const rect = follower.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    
+                    const dx = e.clientX - centerX;
+                    const dy = e.clientY - centerY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // If click is within the image radius, trigger boop
+                    if (distance < rect.width / 2) {
+                        boop(follower);
+                    }
+                });
             });
             
             // For mobile devices
             document.addEventListener('touchstart', function(e) {
                 const touch = e.touches[0];
                 
-                // Calculate distance from touch to follower image center
-                const followerRect = followerImage.getBoundingClientRect();
-                const followerCenterX = followerRect.left + followerRect.width / 2;
-                const followerCenterY = followerRect.top + followerRect.height / 2;
-                
-                const dx = touch.clientX - followerCenterX;
-                const dy = touch.clientY - followerCenterY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                // If touch is within the image radius, trigger boop
-                if (distance < followerRect.width / 2) {
-                    e.preventDefault(); // Prevent default touch behavior
-                    boop();
-                }
+                followers.forEach(followerData => {
+                    const follower = followerData.element;
+                    const rect = follower.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    
+                    const dx = touch.clientX - centerX;
+                    const dy = touch.clientY - centerY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // If touch is within the image radius, trigger boop
+                    if (distance < rect.width / 2) {
+                        e.preventDefault(); // Prevent default touch behavior
+                        boop(follower);
+                    }
+                });
             }, { passive: false });
             
-            // Animation loop for follower image
+            // Get viewport dimensions
+            function getViewportDimensions() {
+                return {
+                    width: window.innerWidth,
+                    height: window.innerHeight
+                };
+            }
+            
+            // Animation loop for all followers
             function animate() {
-                // Update the center position on every frame to ensure it follows the main image
-                updateCenter();
+                const viewport = getViewportDimensions();
+                const time = Date.now() * 0.001; // Current time in seconds
                 
-                // Calculate position using angle and radius
-                const x = centerX + Math.cos(angle) * radius;
-                const y = centerY + Math.sin(angle) * radius;
-                
-                // Apply position to follower image
-                followerImage.style.left = `${x}px`;
-                followerImage.style.top = `${y}px`;
-                
-                // Adjust z-index based on position (higher when above the main image)
-                if (y < centerY) {
-                    followerImage.style.zIndex = "30"; // Above the main image
-                } else {
-                    followerImage.style.zIndex = "10"; // Below the main image
-                }
-                
-                // Incrementally increase the angle for rotation
-                angle += 0.01;
+                followers.forEach(follower => {
+                    // Apply wobble effect
+                    const wobbleX = Math.sin(time * follower.wobbleSpeed + follower.wobbleOffset) * 2;
+                    const wobbleY = Math.cos(time * follower.wobbleSpeed + follower.wobbleOffset + 1) * 2;
+                    
+                    // Update position
+                    let x = parseFloat(follower.element.style.left) + follower.speedX + wobbleX;
+                    let y = parseFloat(follower.element.style.top) + follower.speedY + wobbleY;
+                    
+                    // Bounce off edges
+                    const radius = 40; // Half of image width
+                    if (x < radius) {
+                        x = radius;
+                        follower.speedX *= -1;
+                    } else if (x > viewport.width - radius) {
+                        x = viewport.width - radius;
+                        follower.speedX *= -1;
+                    }
+                    
+                    if (y < radius) {
+                        y = radius;
+                        follower.speedY *= -1;
+                    } else if (y > viewport.height - radius) {
+                        y = viewport.height - radius;
+                        follower.speedY *= -1;
+                    }
+                    
+                    // Apply updated position
+                    follower.element.style.left = `${x}px`;
+                    follower.element.style.top = `${y}px`;
+                    
+                    // Adjust z-index based on y position for depth effect
+                    follower.element.style.zIndex = Math.floor(y);
+                });
                 
                 requestAnimationFrame(animate);
             }
